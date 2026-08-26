@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  </head>
+  <body>
+    <h1>Browser tests</h1>
+    <p>
+      Many browser features require a browser context to operate. You
+      may not want to set up selenium / playwrite for your project.
+      Instead use this simple html page which includes a very simple
+      test harness for automated tests.
+    </p>
+    <p>
+      For these tests to work, a fileserver must be run in the root of
+      this project. Try, for example:
+      <code>caddy file-server --location :8080</code>.
+    </p>
+    <p>
+      If no test results appear, or one or more sections is missing
+      results, check the console for errors or logs.
+    </p>
+    <ul id="results">
+    </ul>
+  </body>
+  <script type="module">
+    class Tester {
+      constructor(node) {
+        // node, sectionFns, testFns
+        this.ctx = [node, [], []];
+      }
+
+      methods() {
+        return {
+          it: this.it.bind(this),
+          expect: this.expect.bind(this),
+          expectEqual: this.expectEqual.bind(this),
+          expectDeepEqual: this.expectDeepEqual.bind(this),
+          expectErr: this.expectErr.bind(this),
+        }
+      }
+
+      it(name, fn) {
+        let [node, sections, _] = this.ctx;
+
+        const li = document.createElement("li");
+        const header = document.createTextNode(name);
+        const subsection = document.createElement("ul")
+        li.appendChild(header);
+        li.appendChild(subsection);
+        node.appendChild(li);
+
+        sections.push(async () => {
+          this.ctx = [subsection, [], []]
+          return await fn();
+        })
+      }
+
+      expectEqual(msg, val, fn) {
+        const [node, _, tests] = this.ctx;
+        tests.push(async () => {
+          let pass;
+          let result;
+          try {
+            result = await fn();
+            pass = val === result;
+          } catch (err) {
+            pass = false;
+            result = err;
+          }
+          displayResult(node, pass, msg, val, result);
+        });
+      }
+
+      expect(msg, fn) {
+        this.expectEqual(msg, true, fn);
+      }
+
+      expectDeepEqual(msg, val, fn) {
+        const [node, _, tests] = this.ctx;
+        tests.push(async () => {
+          let pass;
+          let result;
+          val = JSON.stringify(val);
+          try {
+            result = JSON.stringify(await fn());
+            pass = val === result;
+          } catch (err) {
+            pass = false;
+            result = err;
+          }
+          if (pass) { // Shorten output only when passing
+            val = val.length > 30 ? `${val.slice(0,30)}...` : val;
+            result = result.length > 30 ? `${result.slice(0,30)}...` : result;
+          }
+          displayResult(node, pass, msg, val, result)
+        })
+      }
+
+      expectErr(msg, fn) {
+        const [node, _, tests] = this.ctx;
+        tests.push(async () => {
+          let val = "[Error]"
+          let pass;
+          let result;
+          try {
+            result = await fn();
+            pass = false;
+          } catch (err) {
+            pass = true;
+            result = err;
+          }
+          displayResult(node, pass, msg, val, result)
+        });
+      }
+
+      run() {
+        let [_, sectionFns, tests] = this.ctx;
+        this._runHelper(sectionFns, tests, []).then((allTests) => {
+          Promise.all(allTests.map(fn => fn()));
+        });
+      }
+
+      async _runHelper(sectionFns, tests, allTests) {
+        allTests.push(...tests);
+
+        for (const section of sectionFns) {
+          await section()
+          let [_, sectionFns, tests] = this.ctx;
+          allTests = await this._runHelper(sectionFns, tests, allTests)
+        }
+        return allTests
+      }
+    }
+
+    function displayResult(node, pass, msg, expected, result) {
+      const color = pass ? "darkgreen" : "darkred";
+      const html = `
+        <div style="color: ${color}">
+          "${msg}". Expected: ${expected}. Result: ${result}.
+        </div>
+      `
+      const li = document.createElement("li");
+      li.innerHTML = html;
+      node.appendChild(li);
+    }
+
+    const domNode = document.querySelector("#results");
+    const test = new Tester(domNode);
+    const {
+      it, expect, expectEqual, expectDeepEqual, expectErr
+    } = test.methods();
+
+    // Test the testing framework
+    it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
+      it("expect (should be 2 pass, 1 fail)", async () => {
+        expect("true", () => true);
+        expect("true promise", () => new Promise((res, rej) => res(true)));
+        expect("false", () => false);
+      })
+
+      it("expectEqual (should be 3 pass, 4 fail)", async () => {
+        expectEqual("1 equals 1", 1, () => 1);
+        expectEqual("1 = 1 promise", 1,
+                    () => new Promise((res, rej) => res(1)));
+        expectEqual("1 = 1 await", 1, async () => await 1);
+        expectEqual("1 = reject", 1,
+                    () => new Promise((res, rej) => rej("fail")));
+        expectEqual("1 = 2", 1, () => 2);
+        expectEqual("1 = 2 promise", 1,
+                    () => new Promise((res, rej) => res(2)));
+        expectEqual("1 equals throw", 1,
+                    () => { throw new Error("oops"); });
+      });
+
+      it("expectErr (should be 2 pass, 2 fail)", async () => {
+        expectErr("Error", () => { throw new Error("fail") });
+        expectErr("No error", () => 3);
+        expectErr("resolve", () => new Promise((res, rej) => res(1)));
+        expectErr("reject", () => new Promise((res, rej) => rej("fail")));
+      })
+    })
+    test.run();
+  </script>
+</html>
