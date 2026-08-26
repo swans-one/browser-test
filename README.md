@@ -8,12 +8,8 @@ automation tools.
 **Features:**
 
 - Entire test framework fits in one html file
-- Hierarchical test organization: `it`.
+- Hierarchical test organization: `describe`.
 - Simple but expressive testing functions:
-  - `expect`: Checks a result is `true`.
-  - `expectEqual`: Checks the result equals a value.
-  - `expectDeepEqual`: Checks a result deep into objects and arrays
-  - `expectErr`: Checks that an error is thrown
 - Provide fixtures (coming soon)
 - Tests run in your browser, so you have full access to dev tools for
   debugging.
@@ -68,7 +64,7 @@ the `browser-test.html` file. You'll need to
   }
 
   // Your tests go here
-  it("yourFunction", () => {
+  describe("yourFunction", () => {
     expectEqual("Returns 1337", 1337, async () => {
       return await yourFunction();
     })
@@ -93,5 +89,295 @@ to do a hard refresh (e.g. Ctr-Shift-R on firefox) to pick up code
 changes.
 
 # API
+
+The Testing API is a bit reminiscent of Jest, but pared down to a very
+simple core of functions. Sections are created with `describe`, tests
+are created with the `expect` family of functions, and test fixtures
+are set up per section with `fix`. Sequential tests can be run using
+`assert`.
+
+## `describe`
+
+Create a new testing context. A new testing context means:
+
+- A new section in the results output
+- A new closure for definitions and fixtures
+
+**Usage:** `describe(<name>, <body>)`
+
+At it's simplest, `describe` can be used to structure your tests
+hierarchicaly.
+
+```
+describe("My Tests", () => {
+  describe("Function 1", () => {
+    expectEqual("Returns 100", 100, () => function1());
+  })
+
+  describe("Function 2", () => {
+    expectEqual("Returns 200", 200, () => function2());
+  })
+});
+```
+
+More advanced uses are also possible. Within the body callback you can:
+
+- Run arbitrary code that you can close over with tests or further
+  `describe` calls.
+- Run `fix` to attach fixtures to subsequent tests.
+- Run any number of the `expect` family of functions to perform tests.
+- Create arbitrarily nested contexts with more `describe` calls.
+- Use `await` as long as the callback is marked as `async`.
+
+An example that shows how these features could be used:
+
+```
+describe('myClass', () => {
+  const id = 123;
+  const instance = myClass(id);
+
+  expectEqual('id is set', id, () => {
+    return myClass.id;
+  })
+
+  describe('myClass.myMethod', async () => {
+    fix(
+      'setup',
+      async () => await instance.runSetup(),
+      async () => await instance.runTeardown(),
+    );
+
+    expectEqual("Fetches correct default resource", 777, async ({ setup }) => {
+      const resourceId = setup.id;
+      const resource = await instance.myMethod(resourceId)
+      return resource.value;
+    });
+
+    expectErr('invalid resource is an error', async () => {
+      await instance.myMethod("INVALID")
+    });
+  })
+})
+```
+
+## The `expect` family.
+
+These functions represent the testing unit for the framework. There
+are four different functions, useful for different scenarios:
+
+- `expect`: Checks a result is `true`.
+- `expectEqual`: Checks the result equals a value.
+- `expectDeepEqual`: Checks a result deep into objects and arrays
+- `expectErr`: Checks that an error is thrown
+
+For all of the `expect` family of functions the first argument should
+be the name of the test and the last argument is an (optionally async)
+callback which runs your test code.
+
+By default the callback you provide takes no arguments, and must
+return the value to be compared against. In all of these functions
+besides `expectErr` any unhandled error is treated as a test failure.
+
+### `expect`
+
+A test that passes when the provided callback returns true.
+
+**Usage:** `expect(<name>, <callback>)`
+
+**Examples:**
+
+Simple tests:
+
+```javascript
+# Passes
+expect("true", () => true);
+
+# Fails:
+expect("false", () => false);
+
+# Fails:
+expect("doesn't error", async () => {
+  await Promise.reject("always throws");
+  return true;
+});
+```
+
+Sequences of tests. Since any error fails a test, `expect` can be used
+with `assert`
+
+```javascript
+expect("Everything works", async () => {
+  const data = await setup();
+  assert(data !=== undefined, "Setup ran");
+
+  const output = await process(data);
+  assert(ouput === 4, "Output should be 4");
+
+  const didCleanup = await cleanup(output);
+  assert(didCleanup, "cleanup succeeded");
+
+  return true;
+})
+```
+
+### `expectEqual`
+
+A test that passes when the provided callback returns a value equal to
+the value provided.
+
+**Usage:** `expect(<name>, <expected value>, <callback>)`
+
+**Examples:**
+
+```javascript
+# Passes
+expectEqual("1 + 1 = 2", 2, () => 1 + 1);
+
+# Fails
+expectEqual("2 + 2 = 5", 5, () => 2 + 2);
+
+# Fails -- Must use expectDeepEqual
+expectEqual("same array values", [1, 2, 3], () => [1, 2, 3]);
+```
+
+*Note:* Since object / array comparisons in javascript are done by
+object identity, if you want to compare objects / arrays you must use
+`expectDeepEqual` as described below
+
+### `expectDeepEqual`
+
+A test that passes when the provided callback returns a value
+
+This is checked by encoding the provided value and the returned value
+as JSON and doing a string comparison on the output.
+
+**Usage:** `expectDeepEqual(<name>, <expected value>, <callback>)`
+
+**Examples:**
+
+```javascript
+# Passes
+expectDeepEqual("Arrays are equal", [1, 2, 3], () => [1, 2, 3])
+
+# Passes
+expectDeepEqual(
+  "deep object comparison",
+  {
+    "first": [1, 2, 3],
+    "second": {
+      "third": {
+        a: 1,
+        b: 2,
+        c: 3,
+      },
+    },
+  },
+  () => {
+    return {
+      "first": [1, 2, 3],
+      "second": {
+        "third": { a: 1, b: 2, c: 3, },
+      },
+    },
+  }
+)
+
+# Fails
+expectDeepEqual("Order matters", {a: 1, b: 2}, () => {b: 2, a: 1});
+```
+
+*Note:* Because the comparison is string comparison after JSON
+encoding, object comparisons are (overly) sensitive to ordering. This
+can be mitigated by either carefully arranging your field order in the
+expected value or calling `Object.entries(val).toSorted()` on both
+sides.
+
+### `expectErr`
+
+A test that passes when the provided callback encounters an unhandled
+error.
+
+**Usage:** `expectErr(<name>, <callback>)`
+
+**Examples**:
+
+```javascript
+# Passes
+expectErr("Throw an error", () => {
+  throw new Error("Oops!");
+})
+
+# Passes
+expectErr("Awaiting a rejected promise", async () => {
+  await Promise.reject("Failed");
+})
+
+# Fails
+expectErr("No error thrown", () => 3)
+```
+
+*Note:* `expectErr` does not detect the value of the error, so test
+functions can pass for different errors than you intended. Be sure to
+look at the test output in the browser window to ensure the error
+you're seeing it the error your test expects.
+
+## `fix`
+
+## `assert`
+
+Throw an error with a provided method if the provided value is not
+`true`. Useful for checking intermediate steps in `expect` functions.
+
+**Usage:** `assert(value, msg)`
+
+**Examples:**
+
+```javascript
+# Passes
+expect("several checks", () => {
+  assert(1 + 1 === 2, "1 + 1 = 2");
+  assert([1, 2, 3][1] === 2, "second element is 2");
+  return true
+})
+
+# Fails
+expect("Bad math", () => {
+  assert(2 + 2 === 5, "2 + 2 = 5");
+  return true;
+})
+```
+
+## Built-in tests
+
+The `browser-test.html` file comes with a set of example tests
+built in that show usage of the various features. These can be used as
+a reference and/or deleted from your project.
+
+*Note:* These built-in tests also serve to test the testing
+framework itself, so we actually expect some of them to be failing.
+
+## Method Names
+
+If you don't like the method names, renaming them is as simple as
+changing the names in the destructuring from `test.methods()`. Just
+find the lines that look like this:
+
+```
+const {
+  describe, expect, expectEqual, expectDeepEqual, expectErr
+} = test.methods();
+```
+
+And give new names to the objects. For example:
+
+```
+const {
+  describe: desc,
+  expect: test,
+  expectEqual: testEq,
+  expectDeepEqual: testDeep,
+  expectErr: testErr,
+} = test.methods();
+```
 
 # License
