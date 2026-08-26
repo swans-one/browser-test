@@ -33,7 +33,7 @@
 
       methods() {
         return {
-          it: this.it.bind(this),
+          describe: this.describe.bind(this),
           expect: this.expect.bind(this),
           expectEqual: this.expectEqual.bind(this),
           expectDeepEqual: this.expectDeepEqual.bind(this),
@@ -41,7 +41,7 @@
         }
       }
 
-      it(name, fn) {
+      describe(name, fn) {
         let [node, sections, _] = this.ctx;
 
         const li = document.createElement("li");
@@ -149,18 +149,18 @@
     const domNode = document.querySelector("#results");
     const test = new Tester(domNode);
     const {
-      it, expect, expectEqual, expectDeepEqual, expectErr
+      describe, expect, expectEqual, expectDeepEqual, expectErr
     } = test.methods();
 
     // Test the testing framework
-    it("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
-      it("expect (should be 2 pass, 1 fail)", async () => {
+    describe("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
+      describe("expect (should be 2 pass, 1 fail)", async () => {
         expect("true", () => true);
         expect("true promise", () => new Promise((res, rej) => res(true)));
         expect("false", () => false);
       })
 
-      it("expectEqual (should be 3 pass, 4 fail)", async () => {
+      describe("expectEqual (should be 3 pass, 4 fail)", async () => {
         expectEqual("1 equals 1", 1, () => 1);
         expectEqual("1 = 1 promise", 1,
                     () => new Promise((res, rej) => res(1)));
@@ -174,7 +174,7 @@
                     () => { throw new Error("oops"); });
       });
 
-      it("expectErr (should be 2 pass, 2 fail)", async () => {
+      describe("expectErr (should be 2 pass, 2 fail)", async () => {
         expectErr("Error", () => { throw new Error("fail") });
         expectErr("No error", () => 3);
         expectErr("resolve", () => new Promise((res, rej) => res(1)));
