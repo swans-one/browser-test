@@ -134,6 +134,10 @@
       }
     }
 
+    function assert(val, msg) {
+      if (!val) { thrown new Error(`Assert Fail: ${msg}`)}
+    }
+
     function displayResult(node, pass, msg, expected, result) {
       const color = pass ? "darkgreen" : "darkred";
       const html = `
