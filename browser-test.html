@@ -135,7 +135,7 @@
     }
 
     function assert(val, msg) {
-      if (!val) { thrown new Error(`Assert Fail: ${msg}`)}
+      if (!val) { throw new Error(`Assert Fail: ${msg}`)}
     }
 
     function displayResult(node, pass, msg, expected, result) {
@@ -157,33 +157,62 @@
     } = test.methods();
 
     // Test the testing framework
-    describe("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", async () => {
-      describe("expect (should be 2 pass, 1 fail)", async () => {
-        expect("true", () => true);
-        expect("true promise", () => new Promise((res, rej) => res(true)));
-        expect("false", () => false);
+    describe("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", () => {
+      describe("expect (should be 2 pass, 2 fail)", async () => {
+        expect("pass: true", () => true);
+        expect("pass: true promise", () => Promise.resolve(true));
+        expect("fail: false", () => false);
+        expect("fail: error", () => {
+          throw new Error("oops");
+          return true;
+        })
       })
 
       describe("expectEqual (should be 3 pass, 4 fail)", async () => {
-        expectEqual("1 equals 1", 1, () => 1);
-        expectEqual("1 = 1 promise", 1,
-                    () => new Promise((res, rej) => res(1)));
-        expectEqual("1 = 1 await", 1, async () => await 1);
-        expectEqual("1 = reject", 1,
-                    () => new Promise((res, rej) => rej("fail")));
-        expectEqual("1 = 2", 1, () => 2);
-        expectEqual("1 = 2 promise", 1,
-                    () => new Promise((res, rej) => res(2)));
-        expectEqual("1 equals throw", 1,
-                    () => { throw new Error("oops"); });
+        expectEqual("pass: 1 equals 1", 1, () => 1);
+        expectEqual("pass: 1 = 1 promise", 1, () => Promise.resolve(1));
+        expectEqual("pass: 1 = 1 await", 1, async () => await 1);
+        expectEqual("fail: 1 = reject", 1, () => Promise.reject("fail"));
+        expectEqual("fail: 1 = 2", 1, () => 2);
+        expectEqual("fail: 1 = 2 promise", 1, () => Promise.resolve(2));
+        expectEqual("fail: 1 equals throw", 1, () => {
+          throw new Error("oops");
+        });
       });
 
-      describe("expectErr (should be 2 pass, 2 fail)", async () => {
-        expectErr("Error", () => { throw new Error("fail") });
-        expectErr("No error", () => 3);
-        expectErr("resolve", () => new Promise((res, rej) => res(1)));
-        expectErr("reject", () => new Promise((res, rej) => rej("fail")));
-      })
+      describe("expectDeepEqual (should be 3 pass, 2 fail)", () => {
+        expectDeepEqual("pass: array equal", [1, 2, 3], () => [1, 2, 3]);
+        expectDeepEqual("fail: array not equal", [2, 4, 6], () => [1, 2, 3]);
+        expectDeepEqual("pass: object equal", {a: 1, b: 2}, () => {
+          return { a: 1, b: 2 };
+        });
+        expectDeepEqual("fail: object not equal", {a: 1, b: 2}, () => {
+          return { c: 3, d: 6 };
+        });
+        expectDeepEqual(
+          "pass: nested",
+          [{a: 1}, {b: [1, 2, 3]}],
+          () => [{a: 1}, {b: [1, 2, 3]}],
+        );
+      });
+
+      describe("expectErr (should be 2 pass, 2 fail)", () => {
+        expectErr("pass: Error", () => { throw new Error("fail") });
+        expectErr("fail: No error", () => 3);
+        expectErr("pass: resolve", () => new Promise((res, rej) => res(1)));
+        expectErr("fail: reject", () => new Promise((res, rej) => rej("fail")));
+      });
+
+      describe("assert (should be 1 pass, 1 fail)", () => {
+        expect("pass: Assertion true", () => {
+          assert(1 === 1, "should pass");
+          return true;
+        });
+        expect("fail: Assertion false", () => {
+          assert(1 === 2, "should fail");
+          return true;
+        })
+      });
     })
     test.run();
   </script>
