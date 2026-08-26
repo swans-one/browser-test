@@ -27,8 +27,13 @@
   <script type="module">
     class Tester {
       constructor(node) {
-        // node, sectionFns, testFns
-        this.ctx = [node, [], []];
+        // node, sectionFns, testFns, fixturesUp, fixturesDown
+        this.ctx = {
+          node: node,
+          sections: [],
+          tests: [],
+          fixtures: {},
+        };
       }
 
       methods() {
@@ -42,7 +47,7 @@
       }
 
       describe(name, fn) {
-        let [node, sections, _] = this.ctx;
+        let {node, sections} = this.ctx;
 
         const li = document.createElement("li");
         const header = document.createTextNode(name);
@@ -52,13 +57,16 @@
         node.appendChild(li);
 
         sections.push(async () => {
-          this.ctx = [subsection, [], []]
+          this.ctx = {
+            node: subsection, sections: [], tests: [], fixtures: {},
+          }
           return await fn();
         })
       }
 
       expectEqual(msg, val, fn) {
-        const [node, _, tests] = this.ctx;
+        const {node, tests} = this.ctx; // TODO: fixtures
+
         tests.push(async () => {
           let pass;
           let result;
@@ -78,7 +86,7 @@
       }
 
       expectDeepEqual(msg, val, fn) {
-        const [node, _, tests] = this.ctx;
+        const {node, tests} = this.ctx; // TODO: fixtures
         tests.push(async () => {
           let pass;
           let result;
@@ -99,7 +107,7 @@
       }
 
       expectErr(msg, fn) {
-        const [node, _, tests] = this.ctx;
+        const {node, tests} = this.ctx; // TODO: fixture
         tests.push(async () => {
           let val = "[Error]"
           let pass;
@@ -116,8 +124,8 @@
       }
 
       run() {
-        let [_, sectionFns, tests] = this.ctx;
-        this._runHelper(sectionFns, tests, []).then((allTests) => {
+        let {sections, tests} = this.ctx;
+        this._runHelper(sections, tests, []).then((allTests) => {
           Promise.all(allTests.map(fn => fn()));
         });
       }
@@ -127,8 +135,8 @@
 
         for (const section of sectionFns) {
           await section()
-          let [_, sectionFns, tests] = this.ctx;
-          allTests = await this._runHelper(sectionFns, tests, allTests)
+          let {sections, tests} = this.ctx;
+          allTests = await this._runHelper(sections, tests, allTests)
         }
         return allTests
       }
