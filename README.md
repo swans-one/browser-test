@@ -448,3 +448,7 @@ const {
 ```
 
 # License
+
+Browser-test is MIT licensed. See LICENSE.txt for the full license
+text. When copying `browser-test.html` into your project, simply leave
+the license notice at the top of the file intact.
