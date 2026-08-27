@@ -27,12 +27,8 @@
   <script type="module">
     class Tester {
       constructor(node) {
-        // node, sectionFns, testFns, fixturesUp, fixturesDown
         this.ctx = {
-          node: node,
-          sections: [],
-          tests: [],
-          fixtures: {},
+          node: node, sections: [], tests: [], fixtures: [],
         };
       }
 
@@ -43,11 +39,12 @@
           expectEqual: this.expectEqual.bind(this),
           expectDeepEqual: this.expectDeepEqual.bind(this),
           expectErr: this.expectErr.bind(this),
+          fix: this.fix.bind(this),
         }
       }
 
       describe(name, fn) {
-        let {node, sections} = this.ctx;
+        let {node, sections, fixtures} = this.ctx;
 
         const li = document.createElement("li");
         const header = document.createTextNode(name);
@@ -58,24 +55,34 @@
 
         sections.push(async () => {
           this.ctx = {
-            node: subsection, sections: [], tests: [], fixtures: {},
+            node: subsection, sections: [], tests: [], fixtures: [...fixtures],
           }
           return await fn();
         })
       }
 
+      fix(name, setupFn, teardownFn) {
+        teardownFn = teardownFn || (() => undefined);
+
+        const {fixtures} = this.ctx;
+        fixtures.push([name, setupFn, teardownFn])
+      }
+
       expectEqual(msg, val, fn) {
-        const {node, tests} = this.ctx; // TODO: fixtures
+        const {node, tests, fixtures} = this.ctx;
 
         tests.push(async () => {
           let pass;
           let result;
+          const fixtureResults = await doFixtures(fixtures);
           try {
-            result = await fn();
+            result = await fn(fixtureResults);
             pass = val === result;
           } catch (err) {
             pass = false;
             result = err;
+          } finally {
+            await undoFixtures(fixtures, fixtureResults);
           }
           displayResult(node, pass, msg, val, result);
         });
@@ -86,17 +93,20 @@
       }
 
       expectDeepEqual(msg, val, fn) {
-        const {node, tests} = this.ctx; // TODO: fixtures
+        const {node, tests, fixtures} = this.ctx;
         tests.push(async () => {
           let pass;
           let result;
+          const fixtureResults = await doFixtures(fixtures);
           val = JSON.stringify(val);
           try {
-            result = JSON.stringify(await fn());
+            result = JSON.stringify(await fn(fixtureResults));
             pass = val === result;
           } catch (err) {
             pass = false;
             result = err;
+          } finally {
+            await undoFixtures(fixtures, fixtureResults);
           }
           if (pass) { // Shorten output only when passing
             val = val.length > 30 ? `${val.slice(0,30)}...` : val;
@@ -107,17 +117,20 @@
       }
 
       expectErr(msg, fn) {
-        const {node, tests} = this.ctx; // TODO: fixture
+        const {node, tests, fixtures} = this.ctx;
         tests.push(async () => {
           let val = "[Error]"
           let pass;
           let result;
+          const fixtureResults = await doFixtures(fixtures);
           try {
-            result = await fn();
+            result = await fn(fixtureResults);
             pass = false;
           } catch (err) {
             pass = true;
             result = err;
+          } finally {
+            await undoFixtures(fixtures, fixtureResults);
           }
           displayResult(node, pass, msg, val, result)
         });
@@ -146,6 +159,20 @@
       if (!val) { throw new Error(`Assert Fail: ${msg}`)}
     }
 
+    async function doFixtures(fixtures) {
+      const out = {};
+      for (const [name, setup, ] of fixtures) {
+        out[name] = await setup();
+      }
+      return out;
+    }
+
+    async function undoFixtures(fixtures, fixtureResults) {
+      for (let [, , teardown] of fixtures.toReversed()) {
+        await teardown(fixtureResults);
+      }
+    }
+
     function displayResult(node, pass, msg, expected, result) {
       const color = pass ? "darkgreen" : "darkred";
       const html = `
@@ -161,7 +188,7 @@
     const domNode = document.querySelector("#results");
     const test = new Tester(domNode);
     const {
-      describe, expect, expectEqual, expectDeepEqual, expectErr
+      describe, expect, expectEqual, expectDeepEqual, expectErr, fix
     } = test.methods();
 
     // Test the testing framework
@@ -221,7 +248,54 @@
           return true;
         })
       });
-    })
+
+      describe("fixtures (all should pass)", () => {
+        const data = { };
+        fix("three", () => 3);
+        fix(
+          "uniqueStore",
+          () => {
+            const uuid = crypto.randomUUID();
+            data[uuid] = 12;
+            return uuid;
+          },
+          ({uniqueStore}) => {
+            delete data[uniqueStore];
+          },
+        );
+
+        expectEqual("pass: three fixture passed in", 3, ({three}) => three);
+        expectEqual("pass: setup & teardown", 12, ({uniqueStore}) => {
+          return data[uniqueStore];
+        });
+        expectDeepEqual("pass: deep fixtures", [3], ({three}) => [three]);
+        expectErr("pass: fixtures in expectErr",  ({three}) => {
+          if (three === 3) {
+            throw new Error("three!")
+          }
+        });
+
+        describe("nested fixtures", () => {
+          fix("four", () => 4);
+          expect("pass: three < four", ({three, four}) => three < four);
+        });
+
+        describe("async fixtures", () => {
+          fix("five", async () => await 5);
+          fix("six", () => Promise.resolve(6));
+          fix("promiseSeven", () => (() => Promise.resolve(7)))
+          expectEqual("five is five", 5, ({five}) => five);
+          expectEqual("6 is 6", 6, ({six}) => six);
+          expectEqual(
+            "await seven", 7, async ({promiseSeven}) => await promiseSeven()
+          );
+        })
+
+      });
+    });
+
+    // Don't delete this call to test.run().
+    // It's what runs the tests!
     test.run();
   </script>
 </html>

@@ -323,6 +323,73 @@ you're seeing it the error your test expects.
 
 ## `fix`
 
+Register a fixture to be run for every test in this text context and
+descendent test contexts.
+
+Before each tests is run, all fixtures in its context will be
+run. Each test will be passed as it's only argument an object mapping
+the name of each fixture to it's result. After each test is run, all
+teardown functions will be run, with the fixture results passed in.
+
+**Usage:** `fix(<name>, <setupFn>, [<teardownFn>])`
+
+**Examples:**
+
+```javascript
+describe("Simple fixtures, no teardown required", () => {
+  fix("three", () => 3);
+  fix("asyncThree", async () => await 3)
+
+  expectEqual("three is 3", 3, ({three}) => three);
+  expectEqual("async three is 3", 3, ({asyncThree}) => three);
+})
+
+describe("Fixture with setup and teardown", () => {
+  const data = {};
+  fix(
+    "dataStoreKey",
+    () => {
+      const uuid = crypto.randomUUID();
+      data[uuid] = 12;
+      return uuid;
+    },
+    ({dataStoreKey}) => {
+      delete data[dataStoreKey];
+    }
+  );
+  expectEqual("seeded data", 12, ({dataStoreKey}) => {
+    return data[dataStoreKey]
+  })
+})
+
+describe("Async fixtures", () => {
+  fix("asyncThree", async () => await 3);
+  fix("promiseThree", () => Promise.resolve(3));
+  fix("closureThree", () => (() => Promise.resolve(3)));
+
+  expectEqual("asyncThree", 3, ({asyncThree}) => asyncThree);
+  expectEqual("promiseThree", 3, ({promiseThree}) => promiseThree);
+  expectEqual(
+    "closureThree", 3, async ({closureThree}) => await closureThree()
+  );
+})
+```
+
+*Notes:*
+
+- All in-scope fixtures are run for every test, even if their results
+are unused.
+
+- Because tests are run asyncrounously, you cannot rely on a teardown
+function running before another test's setup function has run. You
+must still assume that any shared data can be updated in any order. In
+general it is a simpler pattern to create new data for each test
+function to own and then clean that up afterwards if necessary.
+
+- If a fixture setup function errors, it will prevent tests that test
+  context from running. This includes async fixtures that reject. If
+  you need a promise from a fixture, return a closure instead.
+
 ## `assert`
 
 Throw an error with a provided method if the provided value is not
