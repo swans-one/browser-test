@@ -1,29 +1,45 @@
 # Browser Test
 
-Some javascript requires a browser context to run making them hard to
-test. This simple test framework is an easy way to automate tests in
-the browser without having to setup complex mocks or browser
-automation tools.
+Don't want to bother setting up a browser automation framework to run
+a few tests? Just drop `browser-test.html` into your project and start
+writing.
+
+If you find yourself writing javascript that needs access to browser
+apis not available on server-side JS engines, you're faced with a hard
+choice:
+
+1. Mock out the relevant API. This may be very challenging based on
+   the complexity of the API, and it will be extra difficult that the
+   mock is accurate enough to adequately test your code.
+2. Setup browser automation with Selenium / Playwrite / Cypress or
+   other tools. Heavyweight, hard to configure, slow, these tools
+   work, but are not fun or easy to use. They also often move you up
+   the ladder from unit-tests to integration tests.
+
+Now you have a third option: `browser-test.html`, the simplest way to
+get automated tests running in the browser.
 
 **Features:**
 
-- Entire test framework fits in one html file
-- Hierarchical test organization: `describe`.
-- Simple but expressive testing functions:
-- Provide fixtures (coming soon)
-- Tests run in your browser, so you have full access to dev tools for
-  debugging.
+- Entire test framework lives in one html file. Just drop it into your
+  project and write tests.
+- Tests are run in the browser, so you have access to:
+  - All browser APIs. Test against the DOM, IndexedDB, local storage, etc.
+  - Dev tools. Set breakpoints, run things in the console
+- Familiar testing syntax. Simple, but expressive.
+- Bring your own browser means cross-browser testing is easy.
+- Test framework is ~175 lines of easy to read javascript.
 
 # Quickstart Usage
 
-Using `browser-test.html` is as simple as Copy, Serve, Write, Refresh:
+Using `browser-test.html` is as simple as **Copy, Serve, Write, Refresh**:
 
-1. Copy the whole browser-test.html file into your project
-2. Serve the browser-test.html file and your library on localhost
-3. Write tests directly into the browser-test.html file
-4. Refresh the browser page to see the results
+1. **Copy** the whole browser-test.html file into your project
+2. **Serve** the browser-test.html file and your library on localhost
+3. **Write** tests directly into the browser-test.html file
+4. **Refresh** the browser page to see the results
 
-**Copy**
+## Copy
 
 The browser-test.html file is MIT licensed, and has the attribution
 included, so you can just copy it directly into your project. For
@@ -38,7 +54,7 @@ your-project/
     browser-test.html
 ```
 
-**Serve**
+## Serve
 
 You'll need to bring your own file server and browser, but for the
 example structure above, it could look as simple as:
@@ -49,7 +65,7 @@ caddy fileserver --location :8080
 firefox http://localhost:8080/test/browser-test.html
 ```
 
-**Write**
+## Write
 
 Writing tests is as simple as adding directly to the `<script>` in
 the `browser-test.html` file. You'll need to
@@ -75,7 +91,7 @@ the `browser-test.html` file. You'll need to
 *Note:* Your import path may change based on how you've structured your
 project and how you're serving the files.
 
-**Refresh**
+## Refresh
 
 The results of your tests show up in the browser window. Green is
 passing, Red is failing. To see new tests and results you just need to
@@ -90,11 +106,12 @@ changes.
 
 # API
 
-The Testing API is a bit reminiscent of Jest, but pared down to a very
-simple core of functions. Sections are created with `describe`, tests
-are created with the `expect` family of functions, and test fixtures
-are set up per section with `fix`. Sequential tests can be run using
-`assert`.
+The Testing API is a bit similar to Jest, but vaslty simplified.
+
+- Use [`describe`](#describe) to create sections of tests
+- Perform tests with the [`expect`](#the-expect-family) family of functions.
+- Create fixtures with [`fix`](#fix) to pull out common setup and
+  teardown functionality.
 
 ## `describe`
 
@@ -108,7 +125,7 @@ Create a new testing context. A new testing context means:
 At it's simplest, `describe` can be used to structure your tests
 hierarchicaly.
 
-```
+```javascript
 describe("My Tests", () => {
   describe("Function 1", () => {
     expectEqual("Returns 100", 100, () => function1());
@@ -131,7 +148,7 @@ More advanced uses are also possible. Within the body callback you can:
 
 An example that shows how these features could be used:
 
-```
+```javascript
 describe('myClass', () => {
   const id = 123;
   const instance = myClass(id);
@@ -429,7 +446,7 @@ If you don't like the method names, renaming them is as simple as
 changing the names in the destructuring from `test.methods()`. Just
 find the lines that look like this:
 
-```
+```javascript
 const {
   describe, expect, expectEqual, expectDeepEqual, expectErr
 } = test.methods();
@@ -437,7 +454,7 @@ const {
 
 And give new names to the objects. For example:
 
-```
+```javscript
 const {
   describe: desc,
   expect: test,
