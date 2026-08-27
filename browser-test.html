@@ -47,6 +47,16 @@
     </ul>
   </body>
   <script type="module">
+    /* #############################
+       ### Add your imports here ###
+       #############################
+
+       E.g.:
+
+       import { yourFunction } from 'src/yourCode.js';
+     */
+
+    // === BEGIN Testing framework ===
     class Tester {
       constructor(node) {
         this.ctx = {
@@ -175,6 +185,7 @@
         }
         return allTests
       }
+
     }
 
     function assert(val, msg) {
@@ -213,7 +224,21 @@
       describe, expect, expectEqual, expectDeepEqual, expectErr, fix
     } = test.methods();
 
-    // Test the testing framework
+    // === END Testing framework ===
+
+    /* ############################
+       ### Add your tests here! ###
+       ############################
+
+       e.g.
+
+       describe("your first test!", () => {
+         expectEqual("1 = 1", 1, () => 1);
+       });
+     */
+
+    // Tests for the testing framework. Feel free to delete these
+    // in your project, or use them as reference.
     describe("Test the test framework (NOTE: we also test that failures are surfaced properly, so each section has some expected failures)", () => {
       describe("expect (should be 2 pass, 2 fail)", async () => {
         expect("pass: true", () => true);
@@ -316,8 +341,10 @@
       });
     });
 
+    // === BEGIN test execution ===
     // Don't delete this call to test.run().
     // It's what runs the tests!
     test.run();
+    // === END test execution ===
   </script>
 </html>

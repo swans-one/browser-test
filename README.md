@@ -1,20 +1,21 @@
-# Browser Test
+# Browser Test - one-file browser test automation
 
 Don't want to bother setting up a browser automation framework to run
 a few tests? Just drop `browser-test.html` into your project and start
 writing.
 
-If you find yourself writing javascript that needs access to browser
-apis not available on server-side JS engines, you're faced with a hard
-choice:
+If you find yourself writing javascript and you need access to browser
+apis that are not available on server-side JS engines, you're faced
+with a hard choice:
 
 1. Mock out the relevant API. This may be very challenging based on
-   the complexity of the API, and it will be extra difficult that the
-   mock is accurate enough to adequately test your code.
+   the complexity of the API. And even with a working mock it will be
+   difficult to know if the mock is accurate enough to adequately test
+   your code.
 2. Setup browser automation with Selenium / Playwrite / Cypress or
    other tools. Heavyweight, hard to configure, slow, these tools
    work, but are not fun or easy to use. They also often move you up
-   the ladder from unit-tests to integration tests.
+   the ladder from unit tests to integration tests.
 
 Now you have a third option: `browser-test.html`, the simplest way to
 get automated tests running in the browser.
@@ -28,15 +29,17 @@ get automated tests running in the browser.
   - Dev tools. Set breakpoints, run things in the console
 - Familiar testing syntax. Simple, but expressive.
 - Bring your own browser means cross-browser testing is easy.
-- Test framework is ~175 lines of easy to read javascript.
+- Test framework is ~175 lines of human-written, easy-to-read
+  javascript so it's easy to audit before dropping into your project.
 
-# Quickstart Usage
+# Quick start Usage
 
 Using `browser-test.html` is as simple as **Copy, Serve, Write, Refresh**:
 
 1. **Copy** the whole browser-test.html file into your project
-2. **Serve** the browser-test.html file and your library on localhost
-3. **Write** tests directly into the browser-test.html file
+2. **Serve** the browser-test.html file and your javascript library on
+   localhost
+3. **Write** tests directly into the `browser-test.html` file
 4. **Refresh** the browser page to see the results
 
 ## Copy
@@ -57,9 +60,9 @@ your-project/
 ## Serve
 
 You'll need to bring your own file server and browser, but for the
-example structure above, it could look as simple as:
+example structure above, serving can be as simple as:
 
-```
+```sh
 cd your-project
 caddy fileserver --location :8080
 firefox http://localhost:8080/test/browser-test.html
@@ -68,7 +71,10 @@ firefox http://localhost:8080/test/browser-test.html
 ## Write
 
 Writing tests is as simple as adding directly to the `<script>` in
-the `browser-test.html` file. You'll need to
+the `browser-test.html` file. You'll need to add code in two places:
+
+1. At the top of the `<script>` import your code
+2. Below the framework code, write your tests
 
 ```html
 <script type="module">
@@ -85,8 +91,18 @@ the `browser-test.html` file. You'll need to
       return await yourFunction();
     })
   })
+
+  // leave in the test.run() call, it runs your tests
+  test.run();
 </script>
 ```
+
+In the `browser-test.html` file there are big block comments
+instructing where to put tests, so you shouldn't get lost.
+
+The file also includes a set of example tests that test the framework
+itself. You can start by running these to ensure everything is
+working, and use them as an example for writing your own tests.
 
 *Note:* Your import path may change based on how you've structured your
 project and how you're serving the files.
@@ -98,7 +114,8 @@ passing, Red is failing. To see new tests and results you just need to
 refresh the window.
 
 Because tests are running in your browser window, you also have full
-access to debugging tools and the console during test runs.
+access to debugging tools and the console during test runs. If tests
+aren't showing up, look in the development console for errors.
 
 *Note:* Depending on how your browser caches dependencies you may need
 to do a hard refresh (e.g. Ctr-Shift-R on firefox) to pick up code
@@ -106,7 +123,7 @@ changes.
 
 # API
 
-The Testing API is a bit similar to Jest, but vaslty simplified.
+The Testing API is similar to Jest, but vastly simplified.
 
 - Use [`describe`](#describe) to create sections of tests
 - Perform tests with the [`expect`](#the-expect-family) family of functions.
@@ -123,7 +140,7 @@ Create a new testing context. A new testing context means:
 **Usage:** `describe(<name>, <body>)`
 
 At it's simplest, `describe` can be used to structure your tests
-hierarchicaly.
+hierarchically.
 
 ```javascript
 describe("My Tests", () => {
@@ -228,7 +245,7 @@ expect("Everything works", async () => {
   assert(data !=== undefined, "Setup ran");
 
   const output = await process(data);
-  assert(ouput === 4, "Output should be 4");
+  assert(output === 4, "Output should be 4");
 
   const didCleanup = await cleanup(output);
   assert(didCleanup, "cleanup succeeded");
@@ -341,7 +358,7 @@ you're seeing it the error your test expects.
 ## `fix`
 
 Register a fixture to be run for every test in this text context and
-descendent test contexts.
+descendant test contexts.
 
 Before each tests is run, all fixtures in its context will be
 run. Each test will be passed as it's only argument an object mapping
@@ -397,7 +414,7 @@ describe("Async fixtures", () => {
 - All in-scope fixtures are run for every test, even if their results
 are unused.
 
-- Because tests are run asyncrounously, you cannot rely on a teardown
+- Because tests are run asynchronously, you cannot rely on a teardown
 function running before another test's setup function has run. You
 must still assume that any shared data can be updated in any order. In
 general it is a simpler pattern to create new data for each test
@@ -454,7 +471,7 @@ const {
 
 And give new names to the objects. For example:
 
-```javscript
+```javascript
 const {
   describe: desc,
   expect: test,
