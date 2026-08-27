@@ -29,7 +29,7 @@ get automated tests running in the browser.
   - Dev tools. Set breakpoints, run things in the console
 - Familiar testing syntax. Simple, but expressive.
 - Bring your own browser means cross-browser testing is easy.
-- The test framework is ~175 lines of human-written, easy-to-read
+- The test framework is ~140 lines of human-written, easy-to-read
   javascript so it's easy to audit before dropping into your project.
 
 # Quick Start

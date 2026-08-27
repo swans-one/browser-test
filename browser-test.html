@@ -102,42 +102,18 @@
         fixtures.push([name, setupFn, teardownFn])
       }
 
-      expectEqual(msg, val, fn) {
-        const {node, tests, fixtures} = this.ctx;
-
-        tests.push(async () => {
-          let pass;
-          let result;
-          const fixtureResults = await Tester.doFixtures(fixtures);
-          try {
-            result = await fn(fixtureResults);
-            pass = val === result;
-          } catch (err) {
-            pass = false;
-            result = err;
-          } finally {
-            await Tester.undoFixtures(fixtures, fixtureResults);
-          }
-          Tester.displayResult(node, pass, msg, val, result);
-        });
-      }
-
-      expect(msg, fn) {
-        this.expectEqual(msg, true, fn);
-      }
-
-      expectDeepEqual(msg, val, fn) {
+      _expectHelper(msg, val, fn, valMap=(v)=>v, catchPass=false) {
         const {node, tests, fixtures} = this.ctx;
         tests.push(async () => {
           let pass;
           let result;
           const fixtureResults = await Tester.doFixtures(fixtures);
-          val = JSON.stringify(val);
+          val = valMap(val);
           try {
-            result = JSON.stringify(await fn(fixtureResults));
+            result = valMap(await fn(fixtureResults));
             pass = val === result;
           } catch (err) {
-            pass = false;
+            pass = catchPass;
             result = err;
           } finally {
             await Tester.undoFixtures(fixtures, fixtureResults);
@@ -148,48 +124,6 @@
           }
           Tester.displayResult(node, pass, msg, val, result)
         })
-      }
-
-      expectErr(msg, fn) {
-        const {node, tests, fixtures} = this.ctx;
-        tests.push(async () => {
-          let val = "[Error]"
-          let pass;
-          let result;
-          const fixtureResults = await Tester.doFixtures(fixtures);
-          try {
-            result = await fn(fixtureResults);
-            pass = false;
-          } catch (err) {
-            pass = true;
-            result = err;
-          } finally {
-            await Tester.undoFixtures(fixtures, fixtureResults);
-          }
-          Tester.displayResult(node, pass, msg, val, result)
-        });
-      }
-
-      assert(val, msg) {
-        if (!val) { throw new Error(`Assert Fail: ${msg}`)}
-      }
-
-      run() {
-        let {sections, tests} = this.ctx;
-        this._runHelper(sections, tests, []).then((allTests) => {
-          Promise.all(allTests.map(fn => fn()));
-        });
-      }
-
-      async _runHelper(sectionFns, tests, allTests) {
-        allTests.push(...tests);
-
-        for (const section of sectionFns) {
-          await section()
-          let {sections, tests} = this.ctx;
-          allTests = await this._runHelper(sections, tests, allTests)
-        }
-        return allTests
       }
 
       static async doFixtures(fixtures) {
@@ -218,6 +152,43 @@
         node.appendChild(li);
       }
 
+      expectEqual(msg, val, fn) {
+        this._expectHelper(msg, val, fn);
+      }
+
+      expect(msg, fn) {
+        this._expectHelper(msg, true, fn);
+      }
+
+      expectDeepEqual(msg, val, fn) {
+        this._expectHelper(msg, val, fn, JSON.stringify);
+      }
+
+      expectErr(msg, fn) {
+        this._expectHelper(msg, "[Error]", fn, undefined, true);
+      }
+
+      assert(val, msg) {
+        if (!val) { throw new Error(`Assert Fail: ${msg}`)}
+      }
+
+      run() {
+        let {sections, tests} = this.ctx;
+        this._runHelper(sections, tests, []).then((allTests) => {
+          Promise.all(allTests.map(fn => fn()));
+        });
+      }
+
+      async _runHelper(sectionFns, tests, allTests) {
+        allTests.push(...tests);
+
+        for (const section of sectionFns) {
+          await section()
+          let {sections, tests} = this.ctx;
+          allTests = await this._runHelper(sections, tests, allTests)
+        }
+        return allTests
+      }
     }
 
     const domNode = document.querySelector("#results");
@@ -342,6 +313,8 @@
 
       });
     });
+
+    expect("pass: Top level tests work too", () => true);
 
     // === BEGIN test execution ===
     // Don't delete this call to test.run().
