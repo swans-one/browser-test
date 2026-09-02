@@ -145,13 +145,13 @@
 
       static displayResult(node, pass, msg, expected, result) {
         const color = pass ? "darkgreen" : "darkred";
-        const html = `
-          <div style="color: ${color}">
-            "${msg}". Expected: ${expected}. Result: ${result}.
-          </div>
-        `
         const li = document.createElement("li");
-        li.innerHTML = html;
+        const div = document.createElement("div");
+        div.style.color = color;
+        const testText = document.createTextNode(
+          `"${msg}". Expected: ${expected}. Result: ${result}.`);
+        div.append(testText);
+        li.append(div);
         node.appendChild(li);
       }
 
@@ -319,6 +319,11 @@
     });
 
     expect("pass: Top level tests work too", () => true);
+    expectEqual(
+      "pass: can't inject html",
+      '<html></html>',
+      () => { return "<html></html>" },
+    );
 
     // === BEGIN test execution ===
     // Don't delete this call to test.run().
