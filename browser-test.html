@@ -119,7 +119,10 @@
             await Tester.undoFixtures(fixtures, fixtureResults);
           }
           if (pass) { // Shorten output only when passing
+            val = val === undefined ? "undefined" : val;
             val = val.length > 30 ? `${val.slice(0,30)}...` : val;
+
+            result = result === undefined ? "undefined" : result;
             result = result.length > 30 ? `${result.slice(0,30)}...` : result;
           }
           Tester.displayResult(node, pass, msg, val, result)
@@ -223,7 +226,7 @@
         })
       })
 
-      describe("expectEqual (should be 3 pass, 4 fail)", async () => {
+      describe("expectEqual (should be 4 pass, 4 fail)", async () => {
         expectEqual("pass: 1 equals 1", 1, () => 1);
         expectEqual("pass: 1 = 1 promise", 1, () => Promise.resolve(1));
         expectEqual("pass: 1 = 1 await", 1, async () => await 1);
@@ -233,6 +236,7 @@
         expectEqual("fail: 1 equals throw", 1, () => {
           throw new Error("oops");
         });
+        expectEqual("pass: undefined", undefined, () => undefined)
       });
 
       describe("expectDeepEqual (should be 3 pass, 2 fail)", () => {
